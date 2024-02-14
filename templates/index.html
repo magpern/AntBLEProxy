@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Select ANT+ Device</title>
+</head>
+<body>
+    <h2>Select an ANT+ Device to Advertise</h2>
+    <form action="/advertise" method="post">
+        {% for device in devices %}
+            <button type="submit" name="device_id" value="{{ device }}">{{ device }}</button><br>
+        {% endfor %}
+    </form>
+</body>
+</html>
