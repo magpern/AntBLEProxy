@@ -2,8 +2,49 @@
 <html>
 <head>
     <title>Scan for ANT+ Devices</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        #scan-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #devices {
+            margin-top: 20px;
+        }
+        .device-entry {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+        }
+        .device-icon {
+            font-size: 24px;
+            margin-right: 15px;
+        }
+        .device-info {
+            flex-grow: 1;
+        }
+        button {
+            padding: 5px 10px;
+            cursor: pointer;
+            background-color: #5cb85c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
     <button id="scan-btn">Scan for ANT+ devices</button>
@@ -12,74 +53,64 @@
     <script>
         $(document).ready(function() {
             var socket = io.connect('http://' + document.domain + ':' + location.port);
-            console.log('Attempting to connect to WebSocket');
 
             socket.on('connect', function() {
                 console.log('WebSocket connected successfully.');
             });
 
-            socket.on('connect_error', function(err) {
-                console.log('Connection Error:', err);
-            });
-
             $('#scan-btn').click(function() {
-                console.log('Scan button clicked. Emitting start_scan event.');
                 $('#devices').empty(); // Clear existing devices
                 socket.emit('start_scan', {data: 'User requested to start scanning'});
             });
 
-            socket.on('new_device', function(msg) {
-                console.log('Received device: ' + msg.device_id);
-                addDeviceButton(msg.device_id);
+            socket.on('new_ant_device', function(msg) {
+                // Assume msg.device_type_code is sent from the server for icon mapping
+                addAntDevice(msg.device_id, msg.device_type_code, msg.transmission_type, msg.device_type_name);
             });
 
-            function addDeviceButton(deviceId) {
-            // Fetch a random word
-                $.ajax({
-                    url: 'https://random-word-api.herokuapp.com/word?number=1',
-                    type: 'GET',
-                    success: function(data) {
-                        // Assuming the API returns an array of words
-                        var word = data[0]; // Get the animal name
+            function getDeviceIcon(deviceTypeCode) {
+                switch(deviceTypeCode) {
+                    case 120: // Heart Rate Monitor
+                        return '<i class="fas fa-heartbeat device-icon" title="Heart Rate Monitor"></i>';
+                    case 11: // Power Meter
+                        return '<i class="fas fa-bolt device-icon" title="Power Meter"></i>';
+                    case 121: // Cadence Sensor
+                        return '<i class="fas fa-cog device-icon" title="Cadence Sensor"></i>';
+                    case 17: // Fitness equipment
+                        return '<i class="fas fa-bicycle device-icon" title="Cadence Sensor"></i>';
+                    default:
+                        return '<i class="fas fa-question device-icon" title="Unknown Device"></i>';
+                }
+            }
 
-                        // Create the label with the animal name
-                        var label = $('<span/>', {
-                            text: word + ': ',
-                            css: {
-                                marginRight: '10px'
-                            }
-                        });
-
-                        // Create the device button
-                        var btn = $('<button/>', {
-                            text: 'Device ' + deviceId,
-                            click: function () {
-                                // Your existing logic to handle device button click
-                                // First, stop polling
-                                socket.emit('stop_polling', {data: 'Stop polling requested by user'});
-                                // Then, request to start advertising the selected device as BLE
-                                socket.emit('advertise_device', {device_id: deviceId});
-
-                                alert('Advertise device ' + deviceId);
-                            }
-                        });
-
-                        // Create a container div for the label and button
-                        var div = $('<div/>').append(label).append(btn);
-
-                        // Append the container div to the #devices div
-                        $('#devices').append(div);
-                    },
-                    error: function(xhr, status, error) {
-                        console.error("Error fetching random animal name:", error);
+            function addAntDevice(deviceId, deviceTypeCode, transmissionType, deviceTypeName) {
+                var iconHtml = getDeviceIcon(deviceTypeCode); // Use the device type code for icon mapping
+                var deviceInfo = `Device ID: ${deviceId}, Type: ${deviceTypeName}, Transmission: ${transmissionType}`;
+                var label = $('<span/>', {
+                    text: deviceInfo,
+                    class: 'device-info'
+            });
+            
+                var btn = $('<button/>', {
+                    text: 'Advertise',
+                    click: function () {
+                        // First, stop polling
+                        socket.emit('stop_polling', {data: 'Stop polling requested by user'});
+                        socket.emit('advertise_device', {device_id: deviceId});
+                        startDataCollectionForDevice(deviceId, deviceTypeCode);
+                        alert('Advertise device ' + deviceId + ' with type ' + deviceType);
                     }
                 });
+
+                var div = $('<div/>', {class: 'device-entry'}).append(iconHtml).append(label).append(btn);
+                $('#devices').append(div);
             }
 
-            function advertiseDevice(deviceId) {
-                // Add your logic to advertise the device as BLE
-                alert('Advertise device ' + deviceId);
+            // Example JavaScript to trigger data collection for a selected device
+            function startDataCollectionForDevice(deviceId, deviceTypeCode) {
+                socket.emit('start_data_collection', { device_id: deviceId, device_type_code: deviceTypeCode });
             }
+
         });
     </script>
 </body>

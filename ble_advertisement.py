@@ -1,20 +1,21 @@
 import dbus
 import dbus.service
+import logging
 
 class LEAdvertisement(dbus.service.Object):
-    def __init__(self, bus, index, advertising_type="peripheral", local_name="HeartRateMonitor"):
-        self.path = f"/org/bluez/example/advertisement{index}"
+    def __init__(self, bus, unique_path_id, local_name, advertising_type="peripheral"):
+        self.path = f"/org/bluez/example/advertisement{unique_path_id}"
         self.bus = bus
         self.advertising_type = advertising_type
-        self.local_name = local_name  # Add local_name as an attribute
+        self.local_name = local_name
         dbus.service.Object.__init__(self, bus, self.path)
-    
+   
     @dbus.service.method("org.bluez.LEAdvertisement1", in_signature="", out_signature="")
     def Release(self):
-        print("Advertisement Released")
+        logging.debug("Advertisement Released")
 
     def get_properties(self):
-        print(self.local_name)
+        logging.debug(self.local_name)
         return {
             "org.bluez.LEAdvertisement1": {
                 "Type": self.advertising_type,
@@ -29,3 +30,5 @@ class LEAdvertisement(dbus.service.Object):
             return self.get_properties()["org.bluez.LEAdvertisement1"]
         else:
             raise dbus.exceptions.DBusException('org.freedesktop.DBus.Error.InvalidArgs')
+
+

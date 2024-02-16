@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
-from BatteryService import BatteryService
-from HeartRateService import HeartRateService
-from TestService import TestService
+from Services.BatteryService import BatteryService
+from Services.HeartRateService import HeartRateService
+from Services.TestService import TestService
 import dbus
 import dbus.exceptions
 import dbus.mainloop.glib
@@ -14,6 +14,10 @@ from gi.repository import GLib  # Correct import for GLib
 import sys
 
 from ble_advertisement import LEAdvertisement
+import logging
+
+# Basic configuration for logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 mainloop = None
 
@@ -112,6 +116,8 @@ def main():
     advertisement = LEAdvertisement(bus, i, local_name=dynamic_name)
 
     try:
+        properties = advertisement.get_properties()
+        logging.info(f"Advertisement properties: {properties}")
         ad_manager.RegisterAdvertisement(advertisement.path, {}, reply_handler=register_app_cb, error_handler=register_app_error_cb)
         print(f"Advertisement {dynamic_name} registered")
     except Exception as e:

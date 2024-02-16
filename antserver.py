@@ -6,7 +6,11 @@ import threading
 import time
 import random
 from ble_advertising import start_ble_advertising, stop_ble_advertising
+from ant_scanner import start_scanning, stop_scanning, set_device_found_callback  # Import ANT+ scanning functions
 import logging
+from gi.repository import GLib
+from openant.devices.common import DeviceType
+from antplus_interface import collect_ant_data
 
 # Basic configuration for logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,51 +23,73 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Assuming you have a global or shared variable to control the polling loop
 is_polling = False
 
+def device_found_callback(device_tuple):
+    device_id, device_type_code, device_trans = device_tuple
+    # Convert the device type code to a readable name using the DeviceType enumeration
+    try:
+        device_type_name = DeviceType(device_type_code).name  # Get the name from the enumeration
+    except ValueError:
+        # Handle cases where the device_type_code is not recognized
+        device_type_name = "Unknown"
+
+    # Now include the readable device type name in the data emitted to the client
+    socketio.emit('new_ant_device', {
+        'device_id': device_id, 
+        'device_type_code': device_type_code,
+        'device_type_name': device_type_name,  # Send the readable name
+        'transmission_type': device_trans
+    })
+
+    logging.info(f"Found ANT+ Device: {device_tuple} as {device_type_name}")
+
+# Set the device found callback in the ANT+ scanning module
+set_device_found_callback(device_found_callback)
+
+@socketio.on('start_scan')
+def handle_start_scan(json):
+    stop_scanning()  # Stop any existing ANT+ scanning
+    logging.info('Received request to start ANT+ scan: ' + str(json))
+    threading.Thread(target=start_scanning).start()  # Start ANT+ scanning in a new thread
+
+@socketio.on('stop_polling')
+def handle_stop_scan(json):
+    logging.info('Stop ANT+ scanning requested')
+    stop_scanning()  # Stop ANT+ scanning
+
 @socketio.on('advertise_device')
 def handle_advertise_device(json):
     device_id = json.get('device_id')
     logging.info(f'Advertise device requested: {device_id}')
+    stop_ble_advertising()  # Stop any existing BLE advertising
     start_ble_advertising(device_id)  # Start BLE advertising with the given device ID
-
-def scan_for_ant_devices():
-    global is_polling
-    is_polling = True  # Start polling
-    while is_polling:
-        # Simulate polling for a device
-        time.sleep(1)  # Polling interval
-        device_id = random.randint(1, 100)
-        
-        # Check if we should still be polling
-        if not is_polling:
-            break
-        
-        # Simulate finding a device and emit to all connected clients
-        logging.info(f"Found ANT+ Device: {device_id}")
-        socketio.emit('new_device', {'device_id': device_id})
-
-# Example usage
-def start_polling():
-    polling_thread = threading.Thread(target=scan_for_ant_devices)
-    polling_thread.start()
-
-def stop_polling():
-    global is_polling
-    is_polling = False
-
-@socketio.on('stop_polling')
-def handle_stop_polling(json):
-    logging.info('Stop polling requested:', json)
-    stop_polling()  # Call the stop_polling function to update the flag
 
 @app.route('/')
 def index():
     return render_template('start.html')
 
-@socketio.on('start_scan')
-def handle_start_scan(json):
-    logging.info('Received request to start scan: ' + str(json))
-    start_polling() # Call the start_polling
+@socketio.on('start_data_collection')
+def handle_start_data_collection(message):
+    device_id = message['device_id']
+    device_type_code = message['device_type_code']
+    # Convert to appropriate types as necessary
+    try:
+        device_id = int(device_id)
+        device_type_code = int(device_type_code)
+        # Start data collection in a separate thread to avoid blocking
+        threading.Thread(target=collect_ant_data, args=(device_id, device_type_code)).start()
+    except ValueError as e:
+        # Handle error, possibly emit error message back to client
+        logging.info(f"Error starting data collection: {e}")
+    
+def run_dbus_loop():
+    GLib.MainLoop().run()
 
 if __name__ == '__main__':
-    setup_and_register_application()  # Register the application with the GATT Manager
+    # Initialize and register application with D-Bus
+    setup_and_register_application()
+    
+    # Start the GLib main loop in a separate thread
+    dbus_thread = threading.Thread(target=run_dbus_loop)
+    dbus_thread.start()
+
     socketio.run(app, debug=True, use_reloader=False, host='0.0.0.0')
