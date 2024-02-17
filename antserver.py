@@ -2,7 +2,7 @@ from flask import Flask, render_template
 from flask_socketio import SocketIO
 from flask_socketio import emit
 from gi.repository import GLib
-from ble_communication.ble_manager import setup_and_register_application
+from ble_communication.ble_service_manager import setup_and_register_application
 import threading
 import time
 import random
