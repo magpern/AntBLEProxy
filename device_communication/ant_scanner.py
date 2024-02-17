@@ -1,78 +1,66 @@
-# ant_scanner.py
-
+import threading
 from openant.easy.node import Node
 from openant.devices.common import DeviceType
 from openant.devices.scanner import Scanner
 from openant.devices import ANTPLUS_NETWORK_KEY
-import threading
 import logging
 import usb.core  # Needed for catching USBError
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+class ANTScanner:
+    def __init__(self, device_id=0, device_type=0, auto_create=False):
+        self.node = None
+        self.scanner = None
+        self.device_id = device_id
+        self.device_type = device_type
+        self.auto_create = auto_create
+        self.device_found_callback = None
+        self.scanning_thread = None  # Thread for running the scan
 
-# Global variables for thread control and the ANT+ node instance
-scanner_thread = None
-scanner = None
+    def set_device_found_callback(self, callback):
+        self.device_found_callback = callback
 
-node = None  # Declare node globally for access in stop_scanning()
-
-# Callback function placeholder
-device_found_callback = None
-
-def set_device_found_callback(callback):
-    global device_found_callback
-    device_found_callback = callback
-
-def scan_devices(device_id=0, device_type=0, auto_create=False):
-    global node, scanner  # Ensure node is accessible globally
-
-    node = Node()
-    node.set_network_key(0x00, ANTPLUS_NETWORK_KEY)
-    scanner = Scanner(node, device_id=device_id, device_type=device_type)
-    scanner.on_found = lambda device_tuple: device_found_callback(device_tuple) if device_found_callback else None
-
-    try:
-        node.start()
-    except KeyboardInterrupt:
-        logging.info("Scanner interrupted")
-    except usb.core.USBError as e:
-        logging.error(f"USB Error encountered: {e}")
-    finally:
-        logging.info("ANT+ scanner stopped and node closed")
-
-def start_scanning():
-    global scanner_thread
-    scanner_thread = threading.Thread(target=scan_devices, daemon=True)  # Optionally make it a daemon thread
-    scanner_thread.start()
-
-def stop_scanning():
-    global node, scanner, scanner_thread
-    logging.info("Stopping ANT+ scanning...")
-
-    if scanner:
+    def _scan(self):
+        """Internal method to run the scanning process in a thread."""
+        logging.info("Starting ANT+ all device scanning...")
+        self.node = Node()
+        self.node.set_network_key(0x00, ANTPLUS_NETWORK_KEY)
+        self.scanner = Scanner(self.node, device_id=self.device_id, device_type=self.device_type)
+        self.scanner.on_found = lambda device_tuple: self.device_found_callback(device_tuple) if self.device_found_callback else None
+        logging.info("Starting scanner...")
         try:
-            scanner.close_channel()
-            logging.info("Scanner channel closed.")
-        except Exception as e:
-            logging.error(f"Error closing scanner channel: {e}")
+            self.node.start()
+        except KeyboardInterrupt:
+            logging.info("Scanner interrupted")
+        except usb.core.USBError as e:
+            logging.error(f"USB Error encountered: {e}")
+        finally:
+            logging.info("ANT+ scanner stopped and node closed")
 
-    if node:
-        try:
-            logging.info("Stopping ANT+ node...")
-            node.stop()  # This stops the ANT+ node and closes the USB connection
-        except Exception as e:
-            logging.error(f"Error stopping node: {e}")
+    def start_scanning(self):
+        """Starts the scanning process in a separate thread."""
+        if self.scanning_thread and self.scanning_thread.is_alive():
+            logging.warning("Scanning is already running.")
+            return
+        self.scanning_thread = threading.Thread(target=self._scan, daemon=True)
+        self.scanning_thread.start()
 
-    # Wait for the scanner thread to finish only after attempting to stop the node
-    if scanner_thread and scanner_thread.is_alive():
-        logging.info("Waiting for scanner thread to join...")
-        scanner_thread.join()
-        logging.info("Scanner thread joined.")
+    def stop_scanning(self):
+        """Stops the scanning process and waits for the thread to finish."""
+        if self.scanner:
+            try:
+                self.scanner.close_channel()
+                logging.info("Scanner channel closed.")
+            except Exception as e:
+                logging.error(f"Error closing scanner channel: {e}")
 
-    # Optionally reset the scanner and node to None if you plan to reinitialize them later
-    scanner = None
-    node = None
+        if self.node:
+            try:
+                logging.info("Stopping ANT+ node...")
+                self.node.stop()
+            except Exception as e:
+                logging.error(f"Error stopping node: {e}")
 
-            
-
+        if self.scanning_thread and self.scanning_thread.is_alive():
+            logging.info("Waiting for the scanning thread to finish...")
+            self.scanning_thread.join()
+            logging.info("Scanning thread finished.")

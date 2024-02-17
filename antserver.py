@@ -6,12 +6,13 @@ from ble_communication.ble_service_manager import setup_and_register_application
 import threading
 import time
 import random
-from ble_communication.ble_advertising_manager import start_ble_advertising, stop_ble_advertising
-from device_communication.ant_scanner import start_scanning, stop_scanning, set_device_found_callback  # Import ANT+ scanning functions
+from ble_communication.ble_service_manager import start_ble_advertising, stop_ble_advertising
+#from device_communication.ant_scanner import start_scanning, stop_scanning, set_device_found_callback  # Import ANT+ scanning functions
 import logging
 from openant.devices.common import DeviceType
 from device_communication.antplus_interface import collect_ant_data
 from threading import Thread
+from device_communication.ant_scanner import ANTScanner
 
 # Basic configuration for logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,6 +21,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins="*")
+ant_scanner = ANTScanner()
+
 
 # Assuming you have a global or shared variable to control the polling loop
 is_polling = False
@@ -43,23 +46,23 @@ def device_found_callback(device_tuple):
 
     logging.info(f"Found ANT+ Device: {device_tuple} as {device_type_name}")
 
-# Set the device found callback in the ANT+ scanning module
-set_device_found_callback(device_found_callback)
+ant_scanner.set_device_found_callback(device_found_callback)
 
 @socketio.on('start_scan')
 def handle_start_scan(json):
-    stop_scanning()  # Stop any existing ANT+ scanning
+    ant_scanner.stop_scanning()  # Stop any existing ANT+ scanning
     logging.info('Received request to start ANT+ scan: ' + str(json))
-    threading.Thread(target=start_scanning).start()  # Start ANT+ scanning in a new thread
+    ant_scanner.start_scanning()
+    #threading.Thread(target=ant_scanner.start_scanning).start()  # Start ANT+ scanning in a new thread
 
 @socketio.on('stop_polling')
 def handle_stop_scan(json):
     logging.info('Stop ANT+ scanning requested')
-    stop_scanning()  # Stop ANT+ scanning
+    ant_scanner.stop_scanning()  # Stop ANT+ scanning
 
 @socketio.on('advertise_device')
 def handle_advertise_device(json):
-    stop_scanning()  # Stop any existing ANT+ scanning
+    ant_scanner.stop_scanning()  # Stop any existing ANT+ scanning
     device_id = json.get('device_id')
     device_type_code = json.get('device_type_code')
 
