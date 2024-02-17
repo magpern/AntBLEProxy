@@ -58,10 +58,12 @@ def handle_stop_scan(json):
 
 @socketio.on('advertise_device')
 def handle_advertise_device(json):
+    stop_scanning()  # Stop any existing ANT+ scanning
     device_id = json.get('device_id')
-    logging.info(f'Advertise device requested: {device_id}')
-    stop_ble_advertising()  # Stop any existing BLE advertising
-    start_ble_advertising(device_id)  # Start BLE advertising with the given device ID
+    device_type_code = json.get('device_type_code')
+
+    logging.info(f'Advertise device requested: Id: {device_id} DeviceType: {device_type_code}')
+    start_ble_advertising(device_id, device_type_code)  # Start BLE advertising with the given device ID
 
 @app.route('/')
 def index():

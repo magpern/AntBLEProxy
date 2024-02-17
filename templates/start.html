@@ -95,8 +95,7 @@
                     text: 'Advertise',
                     click: function () {
                         // First, stop polling
-                        socket.emit('stop_polling', {data: 'Stop polling requested by user'});
-                        socket.emit('advertise_device', {device_id: deviceId});
+                        socket.emit('advertise_device', {device_id: deviceId, device_type_code: deviceTypeCode});
                         startDataCollectionForDevice(deviceId, deviceTypeCode);
                         alert('Advertise device ' + deviceId + ' with type ' + deviceType);
                     }

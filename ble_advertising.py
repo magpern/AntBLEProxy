@@ -5,9 +5,8 @@ from DBusSetup import get_ad_manager, register_app_cb, register_app_error_cb, ge
 
 # Global reference to the current advertisement object
 current_advertisement = None
-advertisement_counter = 0
 
-def start_ble_advertising(device_id):
+def start_ble_advertising(device_id, device_type_code):
     global current_advertisement, advertisement_counter  # Reference the global variables
 
     # Ensure any existing advertisement is stopped before starting a new one
@@ -17,10 +16,7 @@ def start_ble_advertising(device_id):
     logging.info(f"Starting BLE advertising for device {device_id}...")
     dynamic_name = f"Device{device_id}"
     
-    # Increment the counter to ensure a unique object path
-    advertisement_counter += 1
-    unique_path_id = f"{device_id}_{advertisement_counter}"
-    current_advertisement = LEAdvertisement(get_bus(), unique_path_id, dynamic_name)
+    current_advertisement = LEAdvertisement(get_bus(), dynamic_name, device_id, device_type_code)
     
     try:
         properties = current_advertisement.get_properties()

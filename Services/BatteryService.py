@@ -7,40 +7,22 @@ import dbus.service
 import dbus.mainloop.glib
 
 class BatteryLevelCharacteristic(Characteristic):
-    """
-    Fake Battery Level characteristic. The battery level is drained by 2 points
-    every 5 seconds.
-
-    """
     BATTERY_LVL_UUID = '2a19'
 
-    def __init__(self, bus, index, service):
+    def __init__(self, bus, index, service, initial_battery_level=100):
         Characteristic.__init__(
                 self, bus, index,
                 self.BATTERY_LVL_UUID,
                 ['read', 'notify'],
                 service)
         self.notifying = False
-        self.battery_lvl = 100
-        GLib.timeout_add(5000, self.drain_battery)
+        self.battery_lvl = initial_battery_level
 
     def notify_battery_level(self):
-        if not self.notifying:
-            return
-        self.PropertiesChanged(
-                GATT_CHRC_IFACE,
-                { 'Value': [dbus.Byte(self.battery_lvl)] }, [])
-
-    def drain_battery(self):
-        if not self.notifying:
-            return True
-        if self.battery_lvl > 0:
-            self.battery_lvl -= 2
-            if self.battery_lvl < 0:
-                self.battery_lvl = 0
-        print('Battery Level drained: ' + repr(self.battery_lvl))
-        self.notify_battery_level()
-        return True
+        if self.notifying:
+            self.PropertiesChanged(
+                    GATT_CHRC_IFACE,
+                    {'Value': [dbus.Byte(self.battery_lvl)]}, [])
 
     def ReadValue(self, options):
         print('Battery Level read: ' + repr(self.battery_lvl))
@@ -61,12 +43,14 @@ class BatteryLevelCharacteristic(Characteristic):
 
         self.notifying = False
 
+    def SetBatteryLevel(self, level):
+        # Update the battery level and notify connected clients if notifying is enabled
+        self.battery_lvl = max(0, min(100, level))
+        if self.notifying:
+            self.notify_battery_level()
+
 
 class BatteryService(Service):
-    """
-    Fake Battery service that emulates a draining battery.
-
-    """
     BATTERY_UUID = '180f'
 
     def __init__(self, bus, index):

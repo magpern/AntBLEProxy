@@ -24,8 +24,6 @@ class Application(dbus.service.Object):
         logging.info("HeartRateService added")
         self.add_service(BatteryService(bus, 1))
         logging.info("BatteryService added")
-        self.add_service(TestService(bus, 2))
-        logging.info("TestService added")
 
     def get_path(self):
         return dbus.ObjectPath(self.path)

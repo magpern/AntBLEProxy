@@ -9,6 +9,7 @@ GATT_CHRC_IFACE =    'org.bluez.GattCharacteristic1'
 DBUS_PROP_IFACE =    'org.freedesktop.DBus.Properties'
 GATT_SERVICE_IFACE = 'org.bluez.GattService1'
 GATT_DESC_IFACE =    'org.bluez.GattDescriptor1'
+LE_ADVERTISING_IFACE  = "org.bluez.LEAdvertisement1"
 
 class InvalidArgsException(dbus.exceptions.DBusException):
     _dbus_error_name = 'org.freedesktop.DBus.Error.InvalidArgs'
