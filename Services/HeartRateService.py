@@ -1,6 +1,6 @@
-from CharacteristicBase import Characteristic
-from ServiceBase import Service
-from ble_constants import *
+from Services.CharacteristicBase import Characteristic
+from Services.ServiceBase import Service
+from ble_communication.ble_constants import *
 
 class BodySensorLocationChrc(Characteristic):
     BODY_SNSR_LOC_UUID = '00002a38-0000-1000-8000-00805f9b34fb'

@@ -1,6 +1,6 @@
-from CharacteristicBase import Characteristic
-from ServiceBase import Service
-from ble_constants import *
+from Services.CharacteristicBase import Characteristic
+from Services.ServiceBase import Service
+from ble_communication.ble_constants import *
 from gi.repository import GLib
 import dbus
 import dbus.service

@@ -2,8 +2,8 @@ import dbus
 import dbus.service
 import logging
 import uuid
-from ant_device_types import ANTDeviceType, ant_to_ble_service_uuid_map  # Ensure this import is correct
-from ble_constants import *
+from device_communication.ant_device_types import ANTDeviceType, ant_to_ble_service_uuid_map  # Ensure this import is correct
+from ble_communication.ble_constants import *
 
 class LEAdvertisement(dbus.service.Object):
 

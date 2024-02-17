@@ -1,16 +1,17 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 from flask_socketio import emit
-from DBusSetup import setup_and_register_application
+from gi.repository import GLib
+from ble_communication.ble_manager import setup_and_register_application
 import threading
 import time
 import random
-from ble_advertising import start_ble_advertising, stop_ble_advertising
-from ant_scanner import start_scanning, stop_scanning, set_device_found_callback  # Import ANT+ scanning functions
+from ble_communication.ble_advertising_manager import start_ble_advertising, stop_ble_advertising
+from device_communication.ant_scanner import start_scanning, stop_scanning, set_device_found_callback  # Import ANT+ scanning functions
 import logging
-from gi.repository import GLib
 from openant.devices.common import DeviceType
-from antplus_interface import collect_ant_data
+from device_communication.antplus_interface import collect_ant_data
+from threading import Thread
 
 # Basic configuration for logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -64,6 +65,10 @@ def handle_advertise_device(json):
 
     logging.info(f'Advertise device requested: Id: {device_id} DeviceType: {device_type_code}')
     start_ble_advertising(device_id, device_type_code)  # Start BLE advertising with the given device ID
+    
+    # Start collecting data from the ANT+ device and forward it to the BLE device in a new thread
+    data_thread = Thread(target=collect_and_forward_ant_data, args=(device_id, device_type_code), daemon=True)
+    data_thread.start()
 
 @app.route('/')
 def index():
