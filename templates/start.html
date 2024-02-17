@@ -44,6 +44,12 @@
             border: none;
             border-radius: 5px;
         }
+        button:active {
+            background-color: #4cae4c; /* Slightly darker shade */
+        }
+        .button-clicked {
+            box-shadow: 0 0 5px #666; /* Add a shadow to simulate "pressed" */
+        }
     </style>
 </head>
 <body>
@@ -51,6 +57,11 @@
     <div id="devices"></div>
 
     <script>
+        $(document).on('click', 'button', function () {
+            $(this).addClass('button-clicked');
+            setTimeout(() => $(this).removeClass('button-clicked'), 200); // Removes the class after 200ms
+        });
+
         $(document).ready(function() {
             var socket = io.connect('http://' + document.domain + ':' + location.port);
 
@@ -94,7 +105,6 @@
                 var btn = $('<button/>', {
                     text: 'Advertise',
                     click: function () {
-                        // First, stop polling
                         socket.emit('advertise_device', {device_id: deviceId, device_type_code: deviceTypeCode});
                         startDataCollectionForDevice(deviceId, deviceTypeCode);
                         alert('Advertise device ' + deviceId + ' with type ' + deviceType);
