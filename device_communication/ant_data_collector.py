@@ -1,46 +1,35 @@
 import logging
-from openant.easy.node import Node
-from openant.devices.common import DeviceType
-from openant.devices.scanner import Scanner
-from openant.devices import ANTPLUS_NETWORK_KEY
-import threading
-import usb.core  # Needed for catching USBError
+from device_communication.ant_scanner import ANTScanner
 
 class ANTDataCollector:
     def __init__(self, device_id, device_type_code):
-
-        
         self.device_id = device_id
         self.device_type_code = device_type_code
         self.is_connected = False
-        # Placeholder for ANT+ device connection object
-        self.ant_device_connection = None
+        self.scanner = ANTScanner(device_id=device_id, device_type=device_type_code)
+        self.scanner.set_device_found_callback(self.on_device_found)
+        self.scanner.set_data_callback(self.on_data_received)  # Assuming ANTScanner has this method
 
-    def connect(self):
-        # Logic to establish connection with the ANT+ device
-        # This might involve using the device_id and device_type_code
-        # to select the correct ANT+ network and channel configurations.
+    def on_device_found(self, device_info):
+        # Logic when a specific device is found. Initiate connection or start data collection
+        logging.info(f"Connected to device: {device_info}")
         self.is_connected = True
-        logging.info(f"Connected to ANT+ Device: {self.device_id}, Type: {self.device_type_code}")
 
-    def collect_data(self):
-        # Placeholder for data collection logic
-        # Ensure the device is connected before attempting to collect data
+    def on_data_received(self, data):
+        # Handle incoming data from the ANT+ device
+        logging.info(f"Data received from ANT+ device: {data}")
+        self.forward_data_to_ble(data)
+
+    def start_data_collection(self):
+        # Start scanning for the specific device and collect data
         if not self.is_connected:
-            logging.error("Attempted to collect data before connecting to the device.")
-            return
-        
-        # Logic to read data from the ANT+ device
-        ant_data = "sample data"  # Placeholder
-        return ant_data
+            self.scanner.start_scanning()
 
     def forward_data_to_ble(self, data):
         # Logic to forward collected data to the BLE device
-        # This could involve calling a function to update a BLE characteristic with the new data
         logging.info(f"Forwarding data to BLE: {data}")
 
-    def collect_and_forward(self):
-        # High-level method to encapsulate the process
-        self.connect()
-        data = self.collect_data()
-        self.forward_data_to_ble(data)
+    def stop_data_collection(self):
+        # Stop the data collection process
+        self.scanner.stop_scanning()
+        self.is_connected = False

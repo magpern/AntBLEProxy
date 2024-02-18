@@ -19,6 +19,9 @@ class ANTScanner:
     def set_device_found_callback(self, callback):
         self.device_found_callback = callback
 
+    def set_data_callback(self, callback):
+        self.data_callback = callback
+
     def _scan(self):
         """Internal method to run the scanning process in a thread."""
         logging.info("Starting ANT+ all device scanning...")
@@ -26,6 +29,14 @@ class ANTScanner:
         self.node.set_network_key(0x00, ANTPLUS_NETWORK_KEY)
         self.scanner = Scanner(self.node, device_id=self.device_id, device_type=self.device_type)
         self.scanner.on_found = lambda device_tuple: self.device_found_callback(device_tuple) if self.device_found_callback else None
+        self.scanner.on_data = lambda data: self.data_callback(data) if self.data_callback else None
+
+        self.scanner.on_update = lambda device, status: logging.info(f"Received update from device {device}: {status}")
+        self.scanner.on_tx_data = lambda device, data: logging.info(f"Received TX data from device {device}: {data}")
+        self.scanner.on_battery = lambda device, status: logging.info(f"Received battery status from device {device}: {status}")
+        self.scanner.on_device_data = lambda device, data: logging.info(f"Received device data from device {device}: {data}")
+        self.scanner.on_ack_data = lambda device, data: logging.info(f"Received ACK data from device {device}: {data}")
+        
         logging.info("Starting scanner...")
         try:
             self.node.start()

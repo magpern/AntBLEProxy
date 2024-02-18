@@ -13,6 +13,7 @@ from openant.devices.common import DeviceType
 from device_communication.antplus_interface import collect_ant_data
 from threading import Thread
 from device_communication.ant_scanner import ANTScanner
+from device_communication.ant_data_collector import ANTDataCollector
 
 # Basic configuration for logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -69,8 +70,11 @@ def handle_advertise_device(json):
     logging.info(f'Advertise device requested: Id: {device_id} DeviceType: {device_type_code}')
     start_ble_advertising(device_id, device_type_code)  # Start BLE advertising with the given device ID
     
+    # Create an instance of ANTDataCollector for the specified device
+    ant_data_collector = ANTDataCollector(device_id, device_type_code)
+    
     # Start collecting data from the ANT+ device and forward it to the BLE device in a new thread
-    data_thread = Thread(target=collect_and_forward_ant_data, args=(device_id, device_type_code), daemon=True)
+    data_thread = Thread(target=ant_data_collector.start_data_collection, daemon=True)
     data_thread.start()
 
 @app.route('/')
