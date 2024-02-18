@@ -4,6 +4,7 @@ from openant.devices.common import DeviceType
 from openant.devices.scanner import Scanner
 from openant.devices import ANTPLUS_NETWORK_KEY
 import logging
+from openant.base.driver import DriverNotFound
 import usb.core  # Needed for catching USBError
 
 class ANTScanner:
@@ -22,10 +23,24 @@ class ANTScanner:
     def set_data_callback(self, callback):
         self.data_callback = callback
 
+    def set_error_callback(self, callback):
+        self.error_callback = callback
+
     def _scan(self):
         """Internal method to run the scanning process in a thread."""
         logging.info("Starting ANT+ all device scanning...")
-        self.node = Node()
+        try:
+            self.node = Node()
+            # Continue with your scanning setup and logic
+        except DriverNotFound:
+            logging.error("ANT+ USB dongle not found. Please attach the dongle and try again.")
+            # Notify the Flask application about the error to forward it to the client
+            if self.error_callback:
+                self.error_callback("ANT+ USB dongle not found. Please attach the dongle and try again.")
+            return
+        except Exception as e:
+            logging.error(f"Unexpected error encountered: {e}")
+
         self.node.set_network_key(0x00, ANTPLUS_NETWORK_KEY)
         self.scanner = Scanner(self.node, device_id=self.device_id, device_type=self.device_type)
         self.scanner.on_found = lambda device_tuple: self.device_found_callback(device_tuple) if self.device_found_callback else None
@@ -44,6 +59,8 @@ class ANTScanner:
             logging.info("Scanner interrupted")
         except usb.core.USBError as e:
             logging.error(f"USB Error encountered: {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error encountered: {e}")
         finally:
             logging.info("ANT+ scanner stopped and node closed")
 

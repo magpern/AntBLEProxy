@@ -24,6 +24,14 @@ app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins="*")
 ant_scanner = ANTScanner()
 
+def error_notifier(message):
+    socketio.emit('error', {'message': message})
+
+def message_notifier(message):
+    socketio.emit('message', {'message': message})
+
+ant_scanner.set_error_callback(error_notifier)
+
 
 # Assuming you have a global or shared variable to control the polling loop
 is_polling = False
@@ -51,6 +59,7 @@ ant_scanner.set_device_found_callback(device_found_callback)
 
 @socketio.on('start_scan')
 def handle_start_scan(json):
+    socketio.emit('message', {'message': 'Starting ANT+ scan...'})
     ant_scanner.stop_scanning()  # Stop any existing ANT+ scanning
     logging.info('Received request to start ANT+ scan: ' + str(json))
     ant_scanner.start_scanning()
@@ -63,6 +72,7 @@ def handle_stop_scan(json):
 
 @socketio.on('advertise_device')
 def handle_advertise_device(json):
+    socketio.emit('message', {'message': 'Starting BLE advertising...'})
     ant_scanner.stop_scanning()  # Stop any existing ANT+ scanning
     device_id = json.get('device_id')
     device_type_code = json.get('device_type_code')

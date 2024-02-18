@@ -1,4 +1,7 @@
 import logging
+import threading
+from openant.easy.node import Node
+from openant.devices import ANTPLUS_NETWORK_KEY
 from device_communication.ant_scanner import ANTScanner
 
 class ANTDataCollector:
@@ -7,29 +10,39 @@ class ANTDataCollector:
         self.device_type_code = device_type_code
         self.is_connected = False
         self.scanner = ANTScanner(device_id=device_id, device_type=device_type_code)
-        self.scanner.set_device_found_callback(self.on_device_found)
-        self.scanner.set_data_callback(self.on_data_received)  # Assuming ANTScanner has this method
+        self.scanner_thread = None  # Initialize the scanner_thread attribute
 
-    def on_device_found(self, device_info):
-        # Logic when a specific device is found. Initiate connection or start data collection
-        logging.info(f"Connected to device: {device_info}")
-        self.is_connected = True
+    def start_data_collection(self):
+        if self.is_connected or (self.scanner_thread and self.scanner_thread.is_alive()):
+            logging.info("Data collection is already running.")
+            return
+
+        # Define the target function for the thread
+        def target_function():
+            self.scanner.set_device_found_callback(self.on_device_found)
+            self.scanner.set_data_callback(self.on_data_received)
+            self.scanner.start_scanning()
+
+        # Start the scanner thread
+        self.scanner_thread = threading.Thread(target=target_function, daemon=True)
+        self.scanner_thread.start()
+        logging.info("Data collection started.")
 
     def on_data_received(self, data):
         # Handle incoming data from the ANT+ device
         logging.info(f"Data received from ANT+ device: {data}")
         self.forward_data_to_ble(data)
 
-    def start_data_collection(self):
-        # Start scanning for the specific device and collect data
-        if not self.is_connected:
-            self.scanner.start_scanning()
-
-    def forward_data_to_ble(self, data):
-        # Logic to forward collected data to the BLE device
-        logging.info(f"Forwarding data to BLE: {data}")
+    def on_device_found(self, device_info):
+        # Handle device found logic
+        self.is_connected = True
+        logging.info(f"Device found: {device_info}")
 
     def stop_data_collection(self):
-        # Stop the data collection process
-        self.scanner.stop_scanning()
-        self.is_connected = False
+        if self.scanner_thread and self.scanner_thread.is_alive():
+            self.scanner.stop_scanning()
+            self.scanner_thread.join()  # Ensure thread completes execution
+            self.is_connected = False
+            logging.info("Data collection stopped.")
+
+

@@ -17,10 +17,10 @@ def collect_ant_data(device_id, device_type_code):
     # or another suitable method.
     logging.info(f"Starting data collection for device {device_id} of type {device_type_code}")
     # Instantiate the data collector with the specific device ID and type code
-    collector = ANTDataCollector(device_id="12345", device_type_code="67890")
+    collector = ANTDataCollector(device_id, device_type_code)
 
 # Start the collection and forwarding process
-    collector.collect_and_forward()
+    collector.start_data_collection()
 
     # Placeholder for data collection loop or callback setup
     # You would have logic here similar to what was described earlier,

@@ -50,9 +50,39 @@
         .button-clicked {
             box-shadow: 0 0 5px #666; /* Add a shadow to simulate "pressed" */
         }
+        #notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .notification {
+            background-color: #f44336; /* Red for errors */
+            color: white;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            opacity: 0;
+            animation: fadeInOut 5s forwards;
+        }
+
+        .notification.success {
+            background-color: #4CAF50; /* Green for success messages */
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
     </style>
 </head>
 <body>
+    <div id="notification-container"></div>
+
     <button id="scan-btn">Scan for ANT+ devices</button>
     <div id="devices"></div>
 
@@ -68,6 +98,24 @@
             socket.on('connect', function() {
                 console.log('WebSocket connected successfully.');
             });
+
+            socket.on('error', function(data) {
+                createNotification(data.message, 'error'); // 'error' for error messages
+            });
+
+            socket.on('message', function(data) {
+                createNotification(data.message, 'success'); // 'success' for normal messages
+            });
+
+            function createNotification(message, type) {
+                var container = $('#notification-container');
+                var notification = $('<div>').addClass('notification').addClass(type).text(message);
+                container.append(notification);
+                // Automatically remove the notification after the animation ends (5 seconds)
+                setTimeout(function() {
+                    notification.remove();
+                }, 5000);
+            }
 
             $('#scan-btn').click(function() {
                 $('#devices').empty(); // Clear existing devices
