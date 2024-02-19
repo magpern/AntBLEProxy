@@ -1,3 +1,4 @@
+from Services.BatteryService import BatteryLevelCharacteristic
 from Services.CharacteristicBase import Characteristic
 from Services.ServiceBase import Service
 from ble_communication.ble_constants import *
@@ -67,5 +68,16 @@ class HeartRateService(Service):
     def __init__(self, bus, index):
         Service.__init__(self, bus, index, self.HR_UUID, True)
         self.add_characteristic(HeartRateMeasurementChrc(bus, 0, self))
-        self.add_characteristic(BodySensorLocationChrc(bus, 1, self))
+        self.add_characteristic(BatteryLevelCharacteristic(bus, 1, self))
+        #self.add_characteristic(BodySensorLocationChrc(bus, 1, self))
+
+    def update_heart_rate(self, heart_rate):
+        # Find the HeartRateMeasurementChrc characteristic
+        for chrc in self.get_characteristics():
+            if isinstance(chrc, HeartRateMeasurementChrc):
+                # Update heart rate if this is the correct characteristic
+                chrc.update_heart_rate(heart_rate)
+                break
+        else:
+            print("HeartRateMeasurementChrc not found.")
 

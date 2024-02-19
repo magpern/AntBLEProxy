@@ -5,6 +5,7 @@ from openant.devices import ANTPLUS_NETWORK_KEY
 from openant.devices.heart_rate import HeartRate
 from openant.devices.fitness_equipment import FitnessEquipment
 from openant.devices.power_meter import PowerMeter
+from ble_communication.ble_service_manager import Application, HeartRateService
 
 # Add more imports as needed
 
@@ -14,6 +15,7 @@ class ANTDataCollector:
         self.device_id = device_id
         self.device_type_code = device_type_code
         self.device = None  # This will hold the specific ANT+ device instance
+        self.application = Application.get_instance()
 
     def initialize_device(self):
         # Initialize ANT+ network key
@@ -24,8 +26,8 @@ class ANTDataCollector:
         if device_class:
             self.device = device_class(self.node, device_id=self.device_id)
             self.device.on_device_data = self.on_device_data
-            self.device.on_battery = lambda status: logging.info(f"Received battery status: {status}")           
-            # Add more event bindings as necessary
+            #self.device.on_battery = lambda status: logging.info(f"Received battery status: {status}")           
+            # Add more event bindings as necessary           
         else:
             logging.error(f"Unsupported device type code: {self.device_type_code}")
             return
@@ -43,7 +45,20 @@ class ANTDataCollector:
     def on_device_data(self, page, page_name, data):
         # Handle device data and forward to BLE
         logging.info(f"Data received: Page {page} ({page_name}), Data: {data}")
-        # Implement data forwarding logic here
+
+        # Check the type of ANT+ device and forward data accordingly
+        if isinstance(self.device, HeartRate):
+            # Get the heart rate service from the application's registered services
+            heart_rate_service = self.application.get_service_by_type(HeartRateService)
+
+            if heart_rate_service:
+                # Update the heart rate characteristic with the new data
+                # Assuming the HeartRateData class has a heart_rate attribute
+                heart_rate_service.update_heart_rate(data.heart_rate)
+            else:
+                logging.error("HeartRateService not found.")
+        # Add more elif blocks for other types of ANT+ devices and their corresponding BLE services
+
 
     def start_data_collection(self):
         if not self.device:

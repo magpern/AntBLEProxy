@@ -16,16 +16,22 @@ ad_manager = None
 class Application(dbus.service.Object):
     _instance = None
 
-    @classmethod
-    def get_instance(cls, bus):
+    def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super(Application, cls).__new__(cls)
-            dbus.service.Object.__init__(cls._instance, bus, '/')
-            cls._instance.setup(bus)
+            cls._instance.setup(*args, **kwargs)  # Initialize with bus upon first creation
+        return cls._instance
+    
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            raise Exception("Application instance has not been initialized. Call get_instance with bus parameter first.")
         return cls._instance
 
     def setup(self, bus):
+        self.path = '/'
         self.services = []
+        dbus.service.Object.__init__(self, bus, self.path)
         # Add services here
         self.add_service(HeartRateService(bus, 0))
         logging.info("HeartRateService added")
@@ -42,24 +48,21 @@ class Application(dbus.service.Object):
                 raise ValueError("Bus parameter is required for the first instantiation")
             cls(bus)  # This implicitly calls __new__, which will call setup
         return cls._instance
+
+    def get_service_by_type(self, service_type):
+        for service in self.services:
+            if isinstance(service, service_type):
+                return service
+        return None
     
     """
     org.bluez.GattApplication1 interface implementation
     """
-    def __init__(self, bus):
-        self.path = '/'
-        self.services = []
-        dbus.service.Object.__init__(self, bus, self.path)
-        self.add_service(HeartRateService(bus, 0))
-        logging.info("HeartRateService added")
-        self.add_service(BatteryService(bus, 1))
-        logging.info("BatteryService added")
-
     def get_path(self):
         return dbus.ObjectPath(self.path)
 
-    def add_service(self, service):
-        self.services.append(service)
+    #def add_service(self, service):
+    #    self.services.append(service)
 
     @dbus.service.method(DBUS_OM_IFACE, out_signature='a{oa{sa{sv}}}')
     def GetManagedObjects(self):
