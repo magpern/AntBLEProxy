@@ -14,6 +14,35 @@ service_manager = None
 ad_manager = None
 
 class Application(dbus.service.Object):
+    _instance = None
+
+    @classmethod
+    def get_instance(cls, bus):
+        if cls._instance is None:
+            cls._instance = super(Application, cls).__new__(cls)
+            dbus.service.Object.__init__(cls._instance, bus, '/')
+            cls._instance.setup(bus)
+        return cls._instance
+
+    def setup(self, bus):
+        self.services = []
+        # Add services here
+        self.add_service(HeartRateService(bus, 0))
+        logging.info("HeartRateService added")
+        self.add_service(BatteryService(bus, 1))
+        logging.info("BatteryService added")
+
+    def add_service(self, service):
+        self.services.append(service)
+
+    @classmethod
+    def get_instance(cls, bus=None):
+        if cls._instance is None:
+            if bus is None:
+                raise ValueError("Bus parameter is required for the first instantiation")
+            cls(bus)  # This implicitly calls __new__, which will call setup
+        return cls._instance
+    
     """
     org.bluez.GattApplication1 interface implementation
     """
@@ -53,7 +82,7 @@ def setup_and_register_application():
     init_dbus()  # Initialize the D-Bus system
 
     # Create an instance of your application
-    app = Application(bus)
+    app = Application.get_instance(bus)
 
     # Register your application with the GATT Manager
     try:

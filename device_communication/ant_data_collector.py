@@ -1,48 +1,64 @@
 import logging
-import threading
 from openant.easy.node import Node
 from openant.devices import ANTPLUS_NETWORK_KEY
-from device_communication.ant_scanner import ANTScanner
+# Import all specific device classes you plan to use
+from openant.devices.heart_rate import HeartRate
+from openant.devices.fitness_equipment import FitnessEquipment
+from openant.devices.power_meter import PowerMeter
+
+# Add more imports as needed
 
 class ANTDataCollector:
     def __init__(self, device_id, device_type_code):
+        self.node = Node()
         self.device_id = device_id
         self.device_type_code = device_type_code
-        self.is_connected = False
-        self.scanner = ANTScanner(device_id=device_id, device_type=device_type_code)
-        self.scanner_thread = None  # Initialize the scanner_thread attribute
+        self.device = None  # This will hold the specific ANT+ device instance
 
-    def start_data_collection(self):
-        if self.is_connected or (self.scanner_thread and self.scanner_thread.is_alive()):
-            logging.info("Data collection is already running.")
+    def initialize_device(self):
+        # Initialize ANT+ network key
+        self.node.set_network_key(0x00, ANTPLUS_NETWORK_KEY)
+
+        # Dynamically select and instantiate the device based on device_type_code
+        device_class = self.get_device_class_by_code(self.device_type_code)
+        if device_class:
+            self.device = device_class(self.node, device_id=self.device_id)
+            self.device.on_device_data = self.on_device_data
+            self.device.on_battery = lambda status: logging.info(f"Received battery status: {status}")           
+            # Add more event bindings as necessary
+        else:
+            logging.error(f"Unsupported device type code: {self.device_type_code}")
             return
 
-        # Define the target function for the thread
-        def target_function():
-            self.scanner.set_device_found_callback(self.on_device_found)
-            self.scanner.set_data_callback(self.on_data_received)
-            self.scanner.start_scanning()
+    def get_device_class_by_code(self, code):
+        # Map device_type_code to the corresponding device class
+        device_class_map = {
+            120: HeartRate,  # Example device type code to class mapping
+            17: FitnessEquipment,  # Add mappings for other device types
+            11: PowerMeter
+            # Add mappings for other device types
+        }
+        return device_class_map.get(code)
 
-        # Start the scanner thread
-        self.scanner_thread = threading.Thread(target=target_function, daemon=True)
-        self.scanner_thread.start()
-        logging.info("Data collection started.")
+    def on_device_data(self, page, page_name, data):
+        # Handle device data and forward to BLE
+        logging.info(f"Data received: Page {page} ({page_name}), Data: {data}")
+        # Implement data forwarding logic here
 
-    def on_data_received(self, data):
-        # Handle incoming data from the ANT+ device
-        logging.info(f"Data received from ANT+ device: {data}")
-        self.forward_data_to_ble(data)
+    def start_data_collection(self):
+        if not self.device:
+            self.initialize_device()
 
-    def on_device_found(self, device_info):
-        # Handle device found logic
-        self.is_connected = True
-        logging.info(f"Device found: {device_info}")
+        if self.device:
+            logging.info(f"Starting data collection for device {self.device_id}")
+            try:
+                self.node.start()
+            except Exception as e:
+                logging.error(f"Error starting data collection: {e}")
 
     def stop_data_collection(self):
-        if self.scanner_thread and self.scanner_thread.is_alive():
-            self.scanner.stop_scanning()
-            self.scanner_thread.join()  # Ensure thread completes execution
-            self.is_connected = False
-            logging.info("Data collection stopped.")
-
+        if self.device:
+            self.device.close_channel()
+        self.node.stop()
+        logging.info("Data collection stopped.")
 
