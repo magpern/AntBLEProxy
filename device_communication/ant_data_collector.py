@@ -9,7 +9,7 @@ from openant.devices.heart_rate import HeartRate
 from openant.devices.fitness_equipment import FitnessEquipment
 from openant.devices.power_meter import PowerMeter
 from event_system.event_publisher import AsyncEventPublisher
-from event_system.observation_utils import start_observation_for_device_type
+from event_system.observation_utils import start_observation_for_device_type, get_observer_instance
 
 
 # Add more imports as needed
@@ -86,10 +86,23 @@ class ANTDataCollector:
                     self.event_publisher.remove_observer(observer_instance)
                     logging.info(f"Unregistered BLE observer due to initialization failure for device {self.device_id}")
 
-
     def stop_data_collection(self):
         if self.device:
+            logging.info(f"Stopping data collection for device {self.device_id}")
+            # Assuming `close_channel` properly signals the device to stop sending data
             self.device.close_channel()
-        self.node.stop()
+        if self.node:
+            # Stop the ANT+ node to properly shut down ANT+ communications
+            logging.info("Stopping ANT+ node...")
+            self.node.stop()
+        observer_instance = get_observer_instance(self.device_type_code)
+        if observer_instance:
+            logging.info(f"Stopping BLE observer for device {self.device_id}")
+            self.event_publisher.notify_observers_stop(observer_instance)
+            self.event_publisher.remove_observer(observer_instance)
+        else:
+            logging.error(f"No BLE observer found for device type code: {self.device_type_code}")
+
         logging.info("Data collection stopped.")
+
 

@@ -21,3 +21,7 @@ class AsyncEventPublisher:
         tasks = [observer.update(data) for observer in self._observers]
         # Wait for all observers to process the event
         await asyncio.gather(*tasks)
+
+    async def notify_observers_stop(self):
+        tasks = [observer.stop() for observer in self._observers if hasattr(observer, 'stop')]
+        await asyncio.gather(*tasks)

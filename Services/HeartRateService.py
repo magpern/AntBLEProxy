@@ -88,13 +88,15 @@ class HeartRateBLEUpdater(AsyncObserverInterface):
         self.application = application
 
     async def update(self, data):
+        logging.info(f"HeartRateBLEUpdater: Data received: {data}")
         logging.info(f"HeartRateBLEUpdater: Heart rate data received: {data.heart_rate}")
         heart_rate_service = self.application.get_service_by_type(HeartRateService)
         if heart_rate_service:
             heart_rate_service.update_heart_rate(data.heart_rate)
 
-        #logging.info(f"HeartRateBLEUpdater: Data received: Page {data.page} ({data.page_name}), Data: {data}")
-        ## Assuming data contains heart rate information
-        #heart_rate_service = self.application.get_service_by_type(HeartRateService)
-        #if heart_rate_service:
-        #    heart_rate_service.update_heart_rate(data.heart_rate)
+    async def stop(self):
+        logging.info("HeartRateBLEUpdater: Stopping data handling.")
+        heart_rate_service = self.application.get_service_by_type(HeartRateService)
+        if heart_rate_service:
+            heart_rate_service.update_heart_rate(254)
+

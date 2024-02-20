@@ -6,24 +6,31 @@ from openant.easy.channel import Channel
 from device_communication.ant_data_collector import ANTDataCollector
 from event_system.event_publisher import AsyncEventPublisher
 # Import other necessary modules and configurations
+collector_registry = {}
 
 def collect_ant_data(device_id, device_type_code, event_publisher: AsyncEventPublisher):
-    # Assuming device_id and device_type_code are the necessary identifiers
-    # for your ANT+ device and that you have a way to initiate data collection
-    # based on these identifiers.
+    global collector_registry
+    key = (device_id, device_type_code)
     
-    # This is a placeholder for the logic to initiate data collection
-    # from the specified ANT+ device. You'll need to replace it with
-    # actual code that interacts with your ANT+ device, using the openant library
-    # or another suitable method.
     logging.info(f"Starting data collection for device {device_id} of type {device_type_code}")
-    # Instantiate the data collector with the specific device ID and type code
     collector = ANTDataCollector(device_id, device_type_code, event_publisher)
-
-# Start the collection and forwarding process
+    #store the collector in the registry
+    collector_registry[key] = collector
     collector.start_data_collection()
+    
 
-    # Placeholder for data collection loop or callback setup
-    # You would have logic here similar to what was described earlier,
-    # to listen for data from the device and handle it (e.g., print to console,
-    # send over SocketIO to the frontend, etc.)
+def stop_ant_data_collection(device_id, device_type_code):
+    global collector_registry
+    key = (device_id, device_type_code)
+    
+    # Retrieve the collector instance
+    collector : ANTDataCollector = collector_registry.get(key)
+    
+    if collector:
+        collector.stop_data_collection()
+        logging.info(f"Stopped data collection for device {device_id} of type {device_type_code}")
+        # Remove the collector from the registry if no longer needed
+        del collector_registry[key]
+    else:
+        logging.error(f"No active data collector found for device {device_id} of type {device_type_code}")
+

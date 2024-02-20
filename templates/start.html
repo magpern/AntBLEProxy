@@ -148,24 +148,45 @@
                 var label = $('<span/>', {
                     text: deviceInfo,
                     class: 'device-info'
-            });
-            
-                var btn = $('<button/>', {
-                    text: 'Advertise',
+                });
+
+                // Connect button
+                var connectBtn = $('<button/>', {
+                    text: 'Connect',
+                    class: 'connect-btn', // Use class for styling
                     click: function () {
-                        socket.emit('advertise_device', {device_id: deviceId, device_type_code: deviceTypeCode});
+                        //$(this).prop('disabled', true);  // Disable connect button
+                        //disconnectBtn.prop('disabled', false);  // Enable disconnect button
+                        //socket.emit('advertise_device', {device_id: deviceId, device_type_code: deviceTypeCode});
                         startDataCollectionForDevice(deviceId, deviceTypeCode);
-                        alert('Advertise device ' + deviceId + ' with type ' + deviceType);
                     }
                 });
 
-                var div = $('<div/>', {class: 'device-entry'}).append(iconHtml).append(label).append(btn);
+                // Disconnect button, now styled similarly to the Connect button
+                var disconnectBtn = $('<button/>', {
+                    text: 'Disconnect',
+                    class: 'disconnect-btn', // Use class for consistent styling
+                    //prop: { 'disabled': true },  // Initially disabled
+                    click: function () {
+                        //$(this).prop('disabled', true);  // Disable disconnect button
+                        //onnectBtn.prop('disabled', false);  // Enable connect button
+                        //socket.emit('stop_advertise_device', {device_id: deviceId, device_type_code: deviceTypeCode});
+                        stopDataCollectionForDevice(deviceId, deviceTypeCode);
+                    }
+                });
+
+                var div = $('<div/>', {class: 'device-entry'}).append(iconHtml).append(label).append(connectBtn).append(disconnectBtn);
                 $('#devices').append(div);
             }
+
 
             // Example JavaScript to trigger data collection for a selected device
             function startDataCollectionForDevice(deviceId, deviceTypeCode) {
                 socket.emit('start_data_collection', { device_id: deviceId, device_type_code: deviceTypeCode });
+            }
+
+            function stopDataCollectionForDevice(deviceId, deviceTypeCode) {
+                socket.emit('stop_data_collection', { device_id: deviceId, device_type_code: deviceTypeCode });
             }
 
         });

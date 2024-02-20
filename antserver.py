@@ -11,7 +11,7 @@ from ble_communication.ble_service_manager import start_ble_advertising, stop_bl
 #from device_communication.ant_scanner import start_scanning, stop_scanning, set_device_found_callback  # Import ANT+ scanning functions
 import logging
 from openant.devices.common import DeviceType
-from device_communication.antplus_interface import collect_ant_data
+from device_communication.antplus_interface import collect_ant_data, stop_ant_data_collection
 from threading import Thread
 from device_communication.ant_scanner import ANTScanner
 from device_communication.ant_data_collector import ANTDataCollector
@@ -74,8 +74,29 @@ def handle_stop_scan(json):
     logging.info('Stop ANT+ scanning requested')
     ant_scanner.stop_scanning()  # Stop ANT+ scanning
 
-@socketio.on('advertise_device')
-def handle_advertise_device(json):
+#@socketio.on('advertise_device')
+#def handle_advertise_device(json):
+#    socketio.emit('message', {'message': 'Starting BLE advertising...'})
+#    ant_scanner.stop_scanning()  # Stop any existing ANT+ scanning
+#    device_id = json.get('device_id')
+#    device_type_code = json.get('device_type_code')
+
+#    logging.info(f'Advertise device requested: Id: {device_id} DeviceType: {device_type_code}')
+#    start_ble_advertising(device_id, device_type_code)  # Start BLE advertising with the given device ID
+    
+#    # Create an instance of ANTDataCollector for the specified device
+#    ant_data_collector = ANTDataCollector(device_id, device_type_code, event_publisher)
+    
+#    # Start collecting data from the ANT+ device and forward it to the BLE device in a new thread
+#    data_thread = Thread(target=ant_data_collector.start_data_collection, daemon=True)
+#    data_thread.start()
+
+@app.route('/')
+def index():
+    return render_template('start.html')
+
+@socketio.on('start_data_collection')
+def handle_start_data_collection(json):
     socketio.emit('message', {'message': 'Starting BLE advertising...'})
     ant_scanner.stop_scanning()  # Stop any existing ANT+ scanning
     device_id = json.get('device_id')
@@ -83,22 +104,6 @@ def handle_advertise_device(json):
 
     logging.info(f'Advertise device requested: Id: {device_id} DeviceType: {device_type_code}')
     start_ble_advertising(device_id, device_type_code)  # Start BLE advertising with the given device ID
-    
-    # Create an instance of ANTDataCollector for the specified device
-    ant_data_collector = ANTDataCollector(device_id, device_type_code, event_publisher)
-    
-    # Start collecting data from the ANT+ device and forward it to the BLE device in a new thread
-    data_thread = Thread(target=ant_data_collector.start_data_collection, daemon=True)
-    data_thread.start()
-
-@app.route('/')
-def index():
-    return render_template('start.html')
-
-@socketio.on('start_data_collection')
-def handle_start_data_collection(message):
-    device_id = message['device_id']
-    device_type_code = message['device_type_code']
     # Convert to appropriate types as necessary
     try:
         device_id = int(device_id)
@@ -108,7 +113,18 @@ def handle_start_data_collection(message):
     except ValueError as e:
         # Handle error, possibly emit error message back to client
         logging.info(f"Error starting data collection: {e}")
-    
+
+@socketio.on('stop_data_collection')
+def handle_stop_advertise_device(json):
+    logging.info(f"Stop advertising and data collection for device ID: {json.get('device_id')}")
+    # Your logic to stop advertising the device
+    #stop_advertise_device(json.get('device_id'), json.get('device_type_code'))
+    # Optionally, include logic to stop data collection if needed
+    device_id = int(device_id)
+    device_type_code = int(device_type_code)
+    stop_ant_data_collection(device_id, device_type_code)
+
+
 def run_dbus_loop():
     GLib.MainLoop().run()
 
