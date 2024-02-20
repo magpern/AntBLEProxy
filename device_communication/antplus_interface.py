@@ -4,9 +4,10 @@ from openant.easy.node import Node
 from openant.easy.channel import Channel
 
 from device_communication.ant_data_collector import ANTDataCollector
+from event_system.event_publisher import AsyncEventPublisher
 # Import other necessary modules and configurations
 
-def collect_ant_data(device_id, device_type_code):
+def collect_ant_data(device_id, device_type_code, event_publisher: AsyncEventPublisher):
     # Assuming device_id and device_type_code are the necessary identifiers
     # for your ANT+ device and that you have a way to initiate data collection
     # based on these identifiers.
@@ -17,7 +18,7 @@ def collect_ant_data(device_id, device_type_code):
     # or another suitable method.
     logging.info(f"Starting data collection for device {device_id} of type {device_type_code}")
     # Instantiate the data collector with the specific device ID and type code
-    collector = ANTDataCollector(device_id, device_type_code)
+    collector = ANTDataCollector(device_id, device_type_code, event_publisher)
 
 # Start the collection and forwarding process
     collector.start_data_collection()

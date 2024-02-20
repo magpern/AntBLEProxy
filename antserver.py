@@ -1,3 +1,4 @@
+#antserver.py
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 from flask_socketio import emit
@@ -15,10 +16,13 @@ from threading import Thread
 from device_communication.ant_scanner import ANTScanner
 from device_communication.ant_data_collector import ANTDataCollector
 
+from event_system.event_publisher import AsyncEventPublisher
+
 # Basic configuration for logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
+# Global or app-context-bound event publisher
+event_publisher = AsyncEventPublisher()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -81,7 +85,7 @@ def handle_advertise_device(json):
     start_ble_advertising(device_id, device_type_code)  # Start BLE advertising with the given device ID
     
     # Create an instance of ANTDataCollector for the specified device
-    ant_data_collector = ANTDataCollector(device_id, device_type_code)
+    ant_data_collector = ANTDataCollector(device_id, device_type_code, event_publisher)
     
     # Start collecting data from the ANT+ device and forward it to the BLE device in a new thread
     data_thread = Thread(target=ant_data_collector.start_data_collection, daemon=True)
@@ -100,7 +104,7 @@ def handle_start_data_collection(message):
         device_id = int(device_id)
         device_type_code = int(device_type_code)
         # Start data collection in a separate thread to avoid blocking
-        threading.Thread(target=collect_ant_data, args=(device_id, device_type_code)).start()
+        threading.Thread(target=collect_ant_data, args=(device_id, device_type_code, event_publisher)).start()
     except ValueError as e:
         # Handle error, possibly emit error message back to client
         logging.info(f"Error starting data collection: {e}")

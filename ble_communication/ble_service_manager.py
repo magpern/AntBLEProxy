@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 from Services.BatteryService import BatteryService
-from Services.HeartRateService import HeartRateService
+from Services.HeartRateService import HeartRateBLEUpdater, HeartRateService
 from Services.TestService import TestService
 import dbus
 import dbus.mainloop.glib
 from ble_communication.ble_constants import *
 import logging
 from ble_communication.le_advertisement_service import LEAdvertisement
+from event_system.ble_observer_registry import BLEObserverRegistry
 
 bus = None
 adapter = None
@@ -32,11 +33,18 @@ class Application(dbus.service.Object):
         self.path = '/'
         self.services = []
         dbus.service.Object.__init__(self, bus, self.path)
-        # Add services here
+        
+        # Initialize and add services
         self.add_service(HeartRateService(bus, 0))
         logging.info("HeartRateService added")
+
         self.add_service(BatteryService(bus, 1))
         logging.info("BatteryService added")
+
+        # Create an instance of HeartRateBLEUpdater and register it as an observer
+        hr_updater = HeartRateBLEUpdater(self)  # Assuming 'self' is an instance of the Application class
+        BLEObserverRegistry.register(120, hr_updater)  # Register hr_updater for heart rate data
+        logging.info("HeartRateBLEUpdater registered as observer for device type code 120")
 
     def add_service(self, service):
         self.services.append(service)

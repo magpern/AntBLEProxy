@@ -1,21 +1,38 @@
+# ant_data_collector.py
+import asyncio
 import logging
+import threading
 from openant.easy.node import Node
 from openant.devices import ANTPLUS_NETWORK_KEY
 # Import all specific device classes you plan to use
 from openant.devices.heart_rate import HeartRate
 from openant.devices.fitness_equipment import FitnessEquipment
 from openant.devices.power_meter import PowerMeter
-from ble_communication.ble_service_manager import Application, HeartRateService
+from event_system.event_publisher import AsyncEventPublisher
+from event_system.observation_utils import start_observation_for_device_type
+
 
 # Add more imports as needed
 
+def async_to_sync(func):
+    """Decorator to run an async function to completion in a new event loop."""
+    def wrapper(*args, **kwargs):
+        loop = asyncio.new_event_loop()
+        def run():
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(func(*args, **kwargs))
+            loop.close()
+        thread = threading.Thread(target=run)
+        thread.start()
+    return wrapper
+
 class ANTDataCollector:
-    def __init__(self, device_id, device_type_code):
+    def __init__(self, device_id, device_type_code, event_publisher: AsyncEventPublisher):
         self.node = Node()
         self.device_id = device_id
         self.device_type_code = device_type_code
         self.device = None  # This will hold the specific ANT+ device instance
-        self.application = Application.get_instance()
+        self.event_publisher = event_publisher
 
     def initialize_device(self):
         # Initialize ANT+ network key
@@ -25,12 +42,10 @@ class ANTDataCollector:
         device_class = self.get_device_class_by_code(self.device_type_code)
         if device_class:
             self.device = device_class(self.node, device_id=self.device_id)
+            # Simplify the event binding to just what's necessary for data collection
             self.device.on_device_data = self.on_device_data
-            #self.device.on_battery = lambda status: logging.info(f"Received battery status: {status}")           
-            # Add more event bindings as necessary           
         else:
             logging.error(f"Unsupported device type code: {self.device_type_code}")
-            return
 
     def get_device_class_by_code(self, code):
         # Map device_type_code to the corresponding device class
@@ -42,34 +57,35 @@ class ANTDataCollector:
         }
         return device_class_map.get(code)
 
-    def on_device_data(self, page, page_name, data):
-        # Handle device data and forward to BLE
+    @async_to_sync
+    async def on_device_data(self, page, page_name, data):
         logging.info(f"Data received: Page {page} ({page_name}), Data: {data}")
-
-        # Check the type of ANT+ device and forward data accordingly
-        if isinstance(self.device, HeartRate):
-            # Get the heart rate service from the application's registered services
-            heart_rate_service = self.application.get_service_by_type(HeartRateService)
-
-            if heart_rate_service:
-                # Update the heart rate characteristic with the new data
-                # Assuming the HeartRateData class has a heart_rate attribute
-                heart_rate_service.update_heart_rate(data.heart_rate)
-            else:
-                logging.error("HeartRateService not found.")
-        # Add more elif blocks for other types of ANT+ devices and their corresponding BLE services
-
+        await self.event_publisher.notify_observers(data)
 
     def start_data_collection(self):
+        observer_instance = None
         if not self.device:
             self.initialize_device()
 
         if self.device:
             logging.info(f"Starting data collection for device {self.device_id}")
             try:
-                self.node.start()
+                # Dynamically determine and register the corresponding BLE observer
+                observer_instance = start_observation_for_device_type(self.device_type_code, self.event_publisher)
+                
+                if observer_instance:
+                    logging.info(f"Registered BLE observer for device {self.device_id}")
+                    self.node.start()
+                else:
+                    logging.error(f"No BLE observer registered for device type code: {self.device_type_code}")
+                    
             except Exception as e:
-                logging.error(f"Error starting data collection: {e}")
+                logging.error(f"Error starting data collection for device {self.device_id}: {e}")
+                # Optionally unregister the BLE observer if initialization fails
+                if observer_instance:
+                    self.event_publisher.remove_observer(observer_instance)
+                    logging.info(f"Unregistered BLE observer due to initialization failure for device {self.device_id}")
+
 
     def stop_data_collection(self):
         if self.device:
