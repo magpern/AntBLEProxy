@@ -109,14 +109,16 @@ def handle_start_data_collection(json):
         device_id = int(device_id)
         device_type_code = int(device_type_code)
         # Start data collection in a separate thread to avoid blocking
-        threading.Thread(target=collect_ant_data, args=(device_id, device_type_code, event_publisher)).start()
+        threading.Thread(target=collect_ant_data, args=(device_id, device_type_code, event_publisher), daemon=True).start()
     except ValueError as e:
         # Handle error, possibly emit error message back to client
         logging.info(f"Error starting data collection: {e}")
 
 @socketio.on('stop_data_collection')
 def handle_stop_advertise_device(json):
-    logging.info(f"Stop advertising and data collection for device ID: {json.get('device_id')}")
+    device_id = json.get('device_id')
+    device_type_code = json.get('device_type_code')
+    logging.info(f"Stop advertising and data collection for device ID: {device_id}, Type: {device_type_code}")
     # Your logic to stop advertising the device
     #stop_advertise_device(json.get('device_id'), json.get('device_type_code'))
     # Optionally, include logic to stop data collection if needed

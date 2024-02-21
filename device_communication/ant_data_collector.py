@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import threading
+import time
 from openant.easy.node import Node
 from openant.devices import ANTPLUS_NETWORK_KEY
 # Import all specific device classes you plan to use
@@ -10,7 +11,7 @@ from openant.devices.fitness_equipment import FitnessEquipment
 from openant.devices.power_meter import PowerMeter
 from event_system.event_publisher import AsyncEventPublisher
 from event_system.observation_utils import start_observation_for_device_type, get_observer_instance
-
+import usb.core
 
 # Add more imports as needed
 
@@ -76,29 +77,48 @@ class ANTDataCollector:
                 if observer_instance:
                     logging.info(f"Registered BLE observer for device {self.device_id}")
                     self.node.start()
+                    time.sleep(0.1)  # Allow time for the node to stop
+                    logging.info("ANT+ node exited.")
                 else:
                     logging.error(f"No BLE observer registered for device type code: {self.device_type_code}")
                     
             except Exception as e:
                 logging.error(f"Error starting data collection for device {self.device_id}: {e}")
                 # Optionally unregister the BLE observer if initialization fails
-                if observer_instance:
-                    self.event_publisher.remove_observer(observer_instance)
-                    logging.info(f"Unregistered BLE observer due to initialization failure for device {self.device_id}")
+                #if observer_instance:
+                    #self.event_publisher.remove_observer(observer_instance)
+                    #logging.info(f"Unregistered BLE observer due to initialization failure for device {self.device_id}")
 
-    def stop_data_collection(self):
-        if self.device:
-            logging.info(f"Stopping data collection for device {self.device_id}")
-            # Assuming `close_channel` properly signals the device to stop sending data
-            self.device.close_channel()
-        if self.node:
-            # Stop the ANT+ node to properly shut down ANT+ communications
-            logging.info("Stopping ANT+ node...")
-            self.node.stop()
+    @async_to_sync
+    async def stop_data_collection(self):
+        try:
+            if self.device:
+                logging.info(f"Stopping data collection for device {self.device_id}")
+                try:
+                    # Attempt to close the channel, with error handling for state issues
+                    self.device.close_channel()
+                except Exception as e:
+                    logging.error(f"Exception closing channel for device {self.device_id}: {e}")
+        except Exception as e:
+            logging.error(f"Error stopping data collection for device {self.device_id}: {e}")
+
+        try:
+            if self.node:
+                # Attempt to stop the ANT+ node, with error handling for USB issues
+                logging.info("Stopping ANT+ node...")
+                self.node.stop()
+        except usb.core.USBError as e:
+            if e.errno == 2:  # Entity not found
+                logging.warning(f"USB device already detached or not found: {e}")
+            else:
+                logging.error(f"USBError stopping ANT+ node: {e}")
+        except Exception as e:
+            logging.error(f"Exception stopping ANT+ node: {e}")
+
         observer_instance = get_observer_instance(self.device_type_code)
         if observer_instance:
             logging.info(f"Stopping BLE observer for device {self.device_id}")
-            self.event_publisher.notify_observers_stop(observer_instance)
+            await self.event_publisher.notify_observers_stop()
             self.event_publisher.remove_observer(observer_instance)
         else:
             logging.error(f"No BLE observer found for device type code: {self.device_type_code}")
