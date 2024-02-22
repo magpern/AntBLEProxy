@@ -16,7 +16,6 @@ class AsyncEventPublisher:
 
     async def notify_observers(self, data):
         """Notify all registered observers about an event."""
-        logging.info(f"I am here Notifying observers about the event")
         # Creating a list of coroutines for each observer's update method
         tasks = [observer.update(data) for observer in self._observers]
         # Wait for all observers to process the event

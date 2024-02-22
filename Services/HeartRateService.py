@@ -1,4 +1,5 @@
 import logging
+from Services import BatteryService
 from Services.BatteryService import BatteryLevelCharacteristic
 from Services.CharacteristicBase import Characteristic
 from Services.ServiceBase import Service
@@ -86,17 +87,37 @@ class HeartRateService(Service):
 class HeartRateBLEUpdater(AsyncObserverInterface):
     def __init__(self, application):
         self.application = application
+        self.last_battery_level = None
 
-    async def update(self, data):
-        logging.info(f"HeartRateBLEUpdater: Data received: {data}")
-        logging.info(f"HeartRateBLEUpdater: Heart rate data received: {data.heart_rate}")
-        heart_rate_service = self.application.get_service_by_type(HeartRateService)
-        if heart_rate_service:
-            heart_rate_service.update_heart_rate(data.heart_rate)
+    async def update(self, data_tuple):
+        # Unpack the tuple to get page, page_name, and data
+        page, page_name, data = data_tuple
+        logging.info(f"HeartRateBLEUpdater: Data received: Page {page}, Page Name {page_name}, Data: {data}")
 
+        if page_name == "heart_rate":
+            # Data is already a HeartRateData instance, no need to parse
+            heart_rate_service = self.application.get_service_by_type(HeartRateService)
+            if heart_rate_service:
+                heart_rate_service.update_heart_rate(data.heart_rate)
+                #heart_rate_service.update_battery_level(data.last_battery_level)
+        elif page_name == 'battery_status':
+            logging.info(f"Battery status update received: {data}")
+            battery_service = self.application.get_service_by_type(BatteryService)
+            if battery_service:
+                if self.last_battery_level is not None:
+                    # Convert last_battery_level to percentage
+                    battery_level_percent = int((self.last_battery_level / 255.0) * 100)
+                    battery_service.SetBatteryLevel(battery_level_percent)
+            pass
+
+  
     async def stop(self):
         logging.info("HeartRateBLEUpdater: Stopping data handling.")
         heart_rate_service = self.application.get_service_by_type(HeartRateService)
         if heart_rate_service:
-            heart_rate_service.update_heart_rate(254)
+            # Optionally, signal that data collection has stopped by sending a specific value
+            heart_rate_service.update_heart_rate(0)
+
+
+
 

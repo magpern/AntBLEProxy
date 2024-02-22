@@ -56,7 +56,9 @@
             right: 20px;
             z-index: 1000;
         }
-
+        .button-gap {
+            margin-right: 10px;
+        }
         .notification {
             background-color: #f44336; /* Red for errors */
             color: white;
@@ -160,7 +162,7 @@
                         //socket.emit('advertise_device', {device_id: deviceId, device_type_code: deviceTypeCode});
                         startDataCollectionForDevice(deviceId, deviceTypeCode);
                     }
-                });
+                }).addClass('button-gap');;
 
                 // Disconnect button, now styled similarly to the Connect button
                 var disconnectBtn = $('<button/>', {

@@ -1,11 +1,12 @@
 from Services.CharacteristicBase import Characteristic
 from Services.ServiceBase import Service
 from ble_communication.ble_constants import *
+from event_system.observer_interface import AsyncObserverInterface
 from gi.repository import GLib
 import dbus
 import dbus.service
 import dbus.mainloop.glib
-
+import logging
 class BatteryLevelCharacteristic(Characteristic):
     BATTERY_LVL_UUID = '2a19'
 
@@ -43,11 +44,16 @@ class BatteryLevelCharacteristic(Characteristic):
 
         self.notifying = False
 
-    def SetBatteryLevel(self, level):
-        # Update the battery level and notify connected clients if notifying is enabled
-        self.battery_lvl = max(0, min(100, level))
-        if self.notifying:
-            self.notify_battery_level()
+def SetBatteryLevel(self, level):
+    if level is None:
+        # Handle the None case, e.g., log a warning and return early
+        logging.warn("Warning: Attempted to set battery level to None")
+        return
+
+    # Proceed with updating the battery level as normal if level is not None
+    self.battery_lvl = max(0, min(100, level))
+    if self.notifying:
+        self.notify_battery_level()
 
 
 class BatteryService(Service):
@@ -56,3 +62,18 @@ class BatteryService(Service):
     def __init__(self, bus, index):
         Service.__init__(self, bus, index, self.BATTERY_UUID, True)
         self.add_characteristic(BatteryLevelCharacteristic(bus, 0, self))
+
+class BatteryBLEUpdater(AsyncObserverInterface):
+    def __init__(self, application):
+        self.application = application
+
+    async def update(self, data_tuple):
+        page, page_name, data = data_tuple
+
+        if page_name == 'battery_status':
+            pass
+  
+    async def stop(self):
+        logging.info("HeartRateBLEUpdater: Stopping data handling.")
+        pass
+        

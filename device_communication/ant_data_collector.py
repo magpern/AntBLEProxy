@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 from openant.easy.node import Node
+from openant.devices.common import AntPlusDevice
 from openant.devices import ANTPLUS_NETWORK_KEY
 # Import all specific device classes you plan to use
 from openant.devices.heart_rate import HeartRate
@@ -32,7 +33,7 @@ class ANTDataCollector:
         self.node = Node()
         self.device_id = device_id
         self.device_type_code = device_type_code
-        self.device = None  # This will hold the specific ANT+ device instance
+        self.device : AntPlusDevice = None  # This will hold the specific ANT+ device instance
         self.event_publisher = event_publisher
 
     def initialize_device(self):
@@ -45,6 +46,31 @@ class ANTDataCollector:
             self.device = device_class(self.node, device_id=self.device_id)
             # Simplify the event binding to just what's necessary for data collection
             self.device.on_device_data = self.on_device_data
+
+            if self.device:
+                original_on_battery = self.device.on_battery
+
+                def on_battery_hook(battery_data):
+                    # Log the battery data
+                    logging.info(f"Device {self.device_id} Received battery status: {battery_data}")
+                    # Forward battery data to observers
+                    battery_status = {
+                        'battery_id': battery_data.battery_id,
+                        'voltage_fractional': battery_data.voltage_fractional,
+                        'voltage_coarse': battery_data.voltage_coarse,
+                        'status': battery_data.status.value,
+                        'operating_time': battery_data.operating_time,
+                    }
+                    # Notify observers with a special page_name 'battery_status'
+                    asyncio.run_coroutine_threadsafe(
+                        self.event_publisher.notify_observers((None, 'battery_status', battery_status)),
+                        asyncio.get_event_loop()
+                    )
+                    # Call the original on_battery handler, if any
+                    if original_on_battery:
+                        original_on_battery(battery_data)
+
+                self.device.on_battery = on_battery_hook
         else:
             logging.error(f"Unsupported device type code: {self.device_type_code}")
 
@@ -61,7 +87,10 @@ class ANTDataCollector:
     @async_to_sync
     async def on_device_data(self, page, page_name, data):
         logging.info(f"Data received: Page {page} ({page_name}), Data: {data}")
-        await self.event_publisher.notify_observers(data)
+        # Create a tuple that encapsulates page, page_name, and data
+        data_tuple = (page, page_name, data)
+        await self.event_publisher.notify_observers(data_tuple)
+
 
     def start_data_collection(self):
         observer_instance = None
