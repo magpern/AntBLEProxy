@@ -58,14 +58,19 @@ class ANTDataCollector:
                         'battery_id': battery_data.battery_id,
                         'voltage_fractional': battery_data.voltage_fractional,
                         'voltage_coarse': battery_data.voltage_coarse,
-                        'status': battery_data.status.value,
+                        'status': battery_data.status.value,  # Assuming .status is an enum with a .value attribute
                         'operating_time': battery_data.operating_time,
                     }
-                    # Notify observers with a special page_name 'battery_status'
-                    asyncio.run_coroutine_threadsafe(
-                        self.event_publisher.notify_observers((None, 'battery_status', battery_status)),
-                        asyncio.get_event_loop()
-                    )
+                    # Create a tuple for the page, page_name, and data
+                    data_tuple = (None, 'battery_status', battery_status)
+                    # Ensure you have a reference to the correct event loop for thread-safe coroutine execution
+                    if hasattr(self, 'loop') and self.loop.is_running():
+                        asyncio.run_coroutine_threadsafe(
+                            self.event_publisher.notify_observers(data_tuple),
+                            self.loop
+                        )
+                    else:
+                        logging.error("Event loop not available or not running in ANTDataCollector")
                     # Call the original on_battery handler, if any
                     if original_on_battery:
                         original_on_battery(battery_data)

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from Services.CyclingPowerService import CyclingPowerService, CyclingPowerBLEUpdater
 from Services.BatteryService import BatteryService
 from Services.HeartRateService import HeartRateBLEUpdater, HeartRateService
 from Services.TestService import TestService
@@ -41,10 +42,15 @@ class Application(dbus.service.Object):
         self.add_service(BatteryService(bus, 1))
         logging.info("BatteryService added")
 
+        self.add_service(CyclingPowerService(bus, 2))
+        logging.info("CyclingPowerService added")
+
         # Create an instance of HeartRateBLEUpdater and register it as an observer
-        hr_updater = HeartRateBLEUpdater(self)  # Assuming 'self' is an instance of the Application class
-        BLEObserverRegistry.register(120, hr_updater)  # Register hr_updater for heart rate data
+        BLEObserverRegistry.register(120, HeartRateBLEUpdater(self))  # register heart_rate_updater for heart rate data
         logging.info("HeartRateBLEUpdater registered as observer for device type code 120")
+
+        BLEObserverRegistry.register(11, CyclingPowerBLEUpdater(self)) # Register power_updater for power data
+        logging.info("CyclingPowerBLEUpdater registered as observer for device type code 11")
 
     def add_service(self, service):
         self.services.append(service)

@@ -1,6 +1,6 @@
 import logging
-from Services import BatteryService
 from Services.BatteryService import BatteryLevelCharacteristic
+from Services.BatteryService import BatteryService
 from Services.CharacteristicBase import Characteristic
 from Services.ServiceBase import Service
 from ble_communication.ble_constants import *
@@ -102,12 +102,12 @@ class HeartRateBLEUpdater(AsyncObserverInterface):
                 #heart_rate_service.update_battery_level(data.last_battery_level)
         elif page_name == 'battery_status':
             logging.info(f"Battery status update received: {data}")
-            battery_service = self.application.get_service_by_type(BatteryService)
+            battery_service : BatteryService = self.application.get_service_by_type(BatteryService)
             if battery_service:
                 if self.last_battery_level is not None:
                     # Convert last_battery_level to percentage
                     battery_level_percent = int((self.last_battery_level / 255.0) * 100)
-                    battery_service.SetBatteryLevel(battery_level_percent)
+                    battery_service.update_heart_rate(battery_level_percent)
             pass
 
   

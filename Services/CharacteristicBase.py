@@ -1,8 +1,10 @@
+#CharacteristicBase.py
 import dbus.service
 import dbus.exceptions
 import dbus.mainloop.glib
 import dbus
 from ble_communication.ble_constants import *
+import logging
 
 class Characteristic(dbus.service.Object):
     """
@@ -18,6 +20,7 @@ class Characteristic(dbus.service.Object):
         dbus.service.Object.__init__(self, bus, self.path)
 
     def get_properties(self):
+        logging.info("This is the flags {self.flags}")
         return {
                 GATT_CHRC_IFACE: {
                         'Service': self.service.get_path(),

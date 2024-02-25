@@ -44,16 +44,16 @@ class BatteryLevelCharacteristic(Characteristic):
 
         self.notifying = False
 
-def SetBatteryLevel(self, level):
-    if level is None:
-        # Handle the None case, e.g., log a warning and return early
-        logging.warn("Warning: Attempted to set battery level to None")
-        return
+    def SetBatteryLevel(self, level):
+        if level is None:
+            # Handle the None case, e.g., log a warning and return early
+            logging.warn("Warning: Attempted to set battery level to None")
+            return
 
-    # Proceed with updating the battery level as normal if level is not None
-    self.battery_lvl = max(0, min(100, level))
-    if self.notifying:
-        self.notify_battery_level()
+        # Proceed with updating the battery level as normal if level is not None
+        self.battery_lvl = max(0, min(100, level))
+        if self.notifying:
+            self.notify_battery_level()
 
 
 class BatteryService(Service):
@@ -62,6 +62,16 @@ class BatteryService(Service):
     def __init__(self, bus, index):
         Service.__init__(self, bus, index, self.BATTERY_UUID, True)
         self.add_characteristic(BatteryLevelCharacteristic(bus, 0, self))
+
+    def update_heart_rate(self, heart_rate):
+        # Find the HeartRateMeasurementChrc characteristic
+        for chrc in self.get_characteristics():
+            if isinstance(chrc, BatteryLevelCharacteristic):
+                # Update heart rate if this is the correct characteristic
+                chrc.SetBatteryLevel(heart_rate)
+                break
+        else:
+            print("HeartRateMeasurementChrc not found.")
 
 class BatteryBLEUpdater(AsyncObserverInterface):
     def __init__(self, application):
